@@ -1,0 +1,11 @@
+boto3
+pytest
+pytest-cov
+ruff
+black
+mypy
+pyright
+bandit
+pdoc
+hatchling
+boto3-stubs[dynamodb]
