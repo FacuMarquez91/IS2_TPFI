@@ -8,7 +8,8 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import HTTPHandler, Request, build_opener
 from uuid import getnode
 
 logger = logging.getLogger(__name__)
@@ -26,10 +27,17 @@ def listen(
 
     url = f"http://{host}:{port}/"
 
+    # Permitir exclusivamente protocolos HTTP o HTTPS.
+    if urlsplit(url).scheme not in {"http", "https"}:
+        raise ValueError("Esquema de URL no permitido.")
+
     payload = {
         "UUID": str(getnode()),
         "ACTION": "subscribe",
     }
+
+    # Crear el mecanismo encargado de abrir conexiones HTTP.
+    opener = build_opener(HTTPHandler())
 
     while True:
         try:
@@ -42,7 +50,7 @@ def listen(
 
             logger.info("Conectando a %s", url)
 
-            with urlopen(request, timeout=35) as response:
+            with opener.open(request, timeout=35) as response:
                 logger.info("Conexión establecida")
 
                 while True:

@@ -165,7 +165,9 @@ class CorporateRequestHandler(BaseHTTPRequestHandler):
             "application/json; charset=utf-8",
         )
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
         self.end_headers()
+        self.close_connection = True
         self.wfile.write(payload)
 
 
@@ -179,7 +181,7 @@ def main() -> None:
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 
     server = ThreadingHTTPServer(
-        ("0.0.0.0", args.port),
+        ("127.0.0.1", args.port),
         CorporateRequestHandler,
     )
     server.daemon_threads = True

@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import HTTPHandler, Request, build_opener
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,10 @@ def send_request(
     """Enviar una solicitud JSON mediante HTTP POST."""
     url = f"http://{host}:{port}/"
 
+    # Comprobar que la URL utiliza un esquema permitido.
+    if urlsplit(url).scheme not in {"http", "https"}:
+        raise ValueError("Esquema de URL no permitido.")
+
     body = json.dumps(payload).encode("utf-8")
 
     request = Request(
@@ -29,7 +34,10 @@ def send_request(
         method="POST",
     )
 
-    with urlopen(request, timeout=10) as response:
+    # Utilizar un manejador HTTP explícito.
+    opener = build_opener(HTTPHandler())
+
+    with opener.open(request, timeout=10) as response:
         result: dict[str, Any] | list[Any] = json.load(response)
 
     return result
@@ -81,7 +89,11 @@ def main() -> int:
         if not isinstance(payload, dict):
             raise ValueError("La solicitud debe ser un objeto JSON.")
 
-        result = send_request(args.server, args.port, payload)
+        result = send_request(
+            args.server,
+            args.port,
+            payload,
+        )
 
         output_text = json.dumps(
             result,
@@ -100,7 +112,10 @@ def main() -> int:
         return 0
 
     except (OSError, ValueError, HTTPError, URLError) as error:
-        logger.error("Error en SingletonClient: %s", error)
+        logger.error(
+            "Error en SingletonClient: %s",
+            error,
+        )
         return 1
 
 

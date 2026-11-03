@@ -38,11 +38,14 @@ def test_observerclient_receives_update(
     ]
     response.__enter__.return_value = response
 
+    opener = MagicMock()
+    opener.open.return_value = response
+
     with (
         patch(
-            "is2_tpfi.observerclient.urlopen",
-            return_value=response,
-        ) as mock_urlopen,
+            "is2_tpfi.observerclient.build_opener",
+            return_value=opener,
+        ),
         patch(
             "is2_tpfi.observerclient.time.sleep",
             side_effect=KeyboardInterrupt,
@@ -64,15 +67,18 @@ def test_observerclient_receives_update(
         "telefono": "123456",
     }
 
-    mock_urlopen.assert_called_once()
+    opener.open.assert_called_once()
 
 
 def test_observerclient_retries_after_connection_error() -> None:
     """Verificar que se espere antes de reconectar."""
+    opener = MagicMock()
+    opener.open.side_effect = ConnectionError("Servidor caído")
+
     with (
         patch(
-            "is2_tpfi.observerclient.urlopen",
-            side_effect=ConnectionError("Servidor caído"),
+            "is2_tpfi.observerclient.build_opener",
+            return_value=opener,
         ),
         patch(
             "is2_tpfi.observerclient.time.sleep",
@@ -86,6 +92,7 @@ def test_observerclient_retries_after_connection_error() -> None:
             reconnect_seconds=30,
         )
 
+    opener.open.assert_called_once()
     mock_sleep.assert_called_once_with(30)
 
 

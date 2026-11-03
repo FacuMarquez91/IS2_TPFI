@@ -14,10 +14,13 @@ def test_send_request_success() -> None:
     response.read.return_value = b'{"id": "EMPRESA-1"}'
     response.__enter__.return_value = response
 
+    opener = MagicMock()
+    opener.open.return_value = response
+
     with patch(
-        "is2_tpfi.singletonclient.urlopen",
-        return_value=response,
-    ) as mock_urlopen:
+        "is2_tpfi.singletonclient.build_opener",
+        return_value=opener,
+    ) as mock_build_opener:
         result = send_request(
             "localhost",
             8080,
@@ -30,7 +33,10 @@ def test_send_request_success() -> None:
 
     assert result == {"id": "EMPRESA-1"}
 
-    request = mock_urlopen.call_args.args[0]
+    mock_build_opener.assert_called_once()
+    opener.open.assert_called_once()
+
+    request = opener.open.call_args.args[0]
 
     assert request.get_method() == "POST"
     assert request.full_url == "http://localhost:8080/"
