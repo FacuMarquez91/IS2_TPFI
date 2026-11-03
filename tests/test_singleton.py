@@ -1,4 +1,3 @@
-
 """Pruebas del patrón Singleton."""
 
 from is2_tpfi.patterns.singleton import (
