@@ -1,0 +1,69 @@
+
+name: CI - IS2 TPFI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Calidad, seguridad y pruebas
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 15
+
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_DEFAULT_REGION: "us-east-1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configurar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Verificar formato con Black
+        run: python -m black --check src tests
+
+      - name: Analizar codigo con Ruff
+        run: python -m ruff check src tests
+
+      - name: Verificar tipos con MyPy
+        run: python -m mypy src/is2_tpfi
+
+      - name: Verificar tipos con Pyright
+        run: python -m pyright src/is2_tpfi
+
+      - name: Analizar seguridad con Bandit
+        run: python -m bandit -r src/is2_tpfi -f txt
+
+      - name: Ejecutar pruebas y verificar cobertura
+        run: |
+          python -m pytest \
+            --cov=is2_tpfi \
+            --cov-report=term-missing \
+            --cov-fail-under=85
