@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from urllib.request import Request, urlopen
 
 import pytest
-from urllib.request import Request, urlopen
+
 from is2_tpfi.singletonproxyobserver import CorporateRequestHandler
 
 
@@ -214,6 +214,79 @@ def test_server_handles_internal_error() -> None:
 
             result = json.loads(captured.value.read())
             assert result == {"Error": "Error interno del servidor"}
+
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_server_set_notifies_subscribers() -> None:
+    """Verificar que set notifique a un observador mediante HTTP."""
+    from unittest.mock import MagicMock
+
+    from is2_tpfi.patterns.observer import CorporateObserver
+
+    observer = CorporateObserver()
+    received: list[dict[str, object]] = []
+
+    observer.subscribe(
+        "cliente-prueba",
+        lambda event: received.append(event),
+    )
+
+    data = MagicMock()
+    log = MagicMock()
+
+    updated = {
+        "id": "EMPRESA-1",
+        "telefono": "999999",
+    }
+    data.set.return_value = updated
+
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        CorporateRequestHandler,
+    )
+    server.daemon_threads = True
+
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        from is2_tpfi.patterns.proxy import CorporateProxy
+
+        proxy = CorporateProxy(data, log, observer)
+
+        with patch(
+            "is2_tpfi.singletonproxyobserver.CorporateProxy",
+            return_value=proxy,
+        ):
+            payload = {
+                "UUID": "CPU-PRUEBA",
+                "ACTION": "set",
+                "ID": "EMPRESA-1",
+                "telefono": "999999",
+            }
+
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+
+            with urlopen(request, timeout=5) as response:
+                result = json.load(response)
+
+        assert result == updated
+        assert received == [updated]
+
+        data.set.assert_called_once_with(
+            "EMPRESA-1",
+            {"telefono": "999999"},
+        )
+        log.save.assert_called_once()
 
     finally:
         server.shutdown()

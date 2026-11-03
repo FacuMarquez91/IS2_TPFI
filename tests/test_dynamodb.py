@@ -120,3 +120,75 @@ def test_save_requires_id(log_table: MagicMock) -> None:
         CorporateLogSingleton().save({"ACTION": "get"})
 
     log_table.put_item.assert_not_called()
+
+
+def test_set_preserves_unspecified_fields() -> None:
+    """Comprobar que una actualización no borre otros atributos."""
+    from unittest.mock import MagicMock
+
+    from is2_tpfi.patterns.singleton import CorporateDataSingleton
+
+    manager = CorporateDataSingleton()
+    original_table = manager.table
+
+    fake_table = MagicMock()
+    fake_table.update_item.return_value = {
+        "Attributes": {
+            "id": "EMPRESA-1",
+            "telefono": "999999",
+            "domicilio": "CALLE ORIGINAL",
+        }
+    }
+
+    try:
+        manager.table = fake_table
+
+        result = manager.set(
+            "EMPRESA-1",
+            {"telefono": "999999"},
+        )
+
+        assert result["telefono"] == "999999"
+        assert result["domicilio"] == "CALLE ORIGINAL"
+
+        arguments = fake_table.update_item.call_args.kwargs
+        expression = arguments["UpdateExpression"]
+
+        assert "SET" in expression
+        assert arguments["Key"] == {"id": "EMPRESA-1"}
+    finally:
+        manager.table = original_table
+
+
+def test_set_initializes_missing_fields() -> None:
+    """Comprobar que set prepare atributos faltantes en blanco."""
+    from unittest.mock import MagicMock
+
+    from is2_tpfi.patterns.singleton import CorporateDataSingleton
+
+    manager = CorporateDataSingleton()
+    original_table = manager.table
+
+    fake_table = MagicMock()
+    fake_table.update_item.return_value = {
+        "Attributes": {
+            "id": "EMPRESA-NUEVA",
+            "telefono": "123456",
+            "domicilio": "",
+        }
+    }
+
+    try:
+        manager.table = fake_table
+
+        manager.set(
+            "EMPRESA-NUEVA",
+            {"telefono": "123456"},
+        )
+
+        arguments = fake_table.update_item.call_args.kwargs
+        expression = arguments["UpdateExpression"]
+
+        assert "if_not_exists" in expression
+    finally:
+        manager.table = original_table

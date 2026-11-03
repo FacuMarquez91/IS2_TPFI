@@ -51,7 +51,7 @@ def test_proxy_set() -> None:
             "UUID": "CPU-1",
             "ID": "EMPRESA-1",
             "ACTION": "set",
-            "DATA": {"telefono": "123456"},
+            "telefono": "123456",
         }
     )
 
@@ -66,16 +66,35 @@ def test_proxy_set() -> None:
 
 
 def test_proxy_invalid_action() -> None:
-    """Rechazar acciones desconocidas."""
+    """Rechazar acciones desconocidas y registrar el intento."""
     data = MagicMock()
     log = MagicMock()
+
     proxy = CorporateProxy(data, log)
 
-    result = proxy.process({"UUID": "CPU-1", "ACTION": "delete"})
+    result = proxy.process(
+        {
+            "UUID": "CPU-1",
+            "ACTION": "delete",
+        }
+    )
 
     assert result == {"Error": "Acción no válida"}
+
+    # No debe realizar ninguna operación sobre CorporateData.
     data.get.assert_not_called()
-    log.save.assert_not_called()
+    data.set.assert_not_called()
+    data.list_all.assert_not_called()
+
+    # La solicitud rechazada sí debe registrarse en CorporateLog.
+    log.save.assert_called_once()
+
+    entry = log.save.call_args.args[0]
+
+    assert entry["UUID"] == "CPU-1"
+    assert entry["ACTION"] == "delete"
+    assert "timestamp" in entry
+    assert "session" in entry
 
 
 def test_proxy_missing_uuid() -> None:
@@ -115,7 +134,7 @@ def test_proxy_set_notifies_observers() -> None:
             "UUID": "CPU-1",
             "ID": "EMPRESA-1",
             "ACTION": "set",
-            "DATA": {"telefono": "123456"},
+            "telefono": "123456",
         }
     )
 
@@ -167,3 +186,60 @@ def test_proxy_list_does_not_notify() -> None:
     )
 
     observer.notify.assert_not_called()
+
+
+def test_proxy_audit_contains_required_fields() -> None:
+    """Verificar los datos mínimos del registro de auditoría."""
+    data = MagicMock()
+    log = MagicMock()
+    observer = MagicMock()
+
+    data.get.return_value = {"id": "EMPRESA-1"}
+
+    proxy = CorporateProxy(data, log, observer)
+
+    proxy.process(
+        {
+            "UUID": "CPU-123",
+            "ACTION": "get",
+            "ID": "EMPRESA-1",
+        }
+    )
+
+    log.save.assert_called_once()
+
+    entry = log.save.call_args.args[0]
+
+    assert entry["UUID"] == "CPU-123"
+    assert entry["ACTION"] == "get"
+    assert entry["ID"] == "EMPRESA-1"
+    assert isinstance(entry["id"], str)
+    assert isinstance(entry["session"], str)
+    assert isinstance(entry["timestamp"], str)
+
+
+def test_proxy_audits_rejected_action() -> None:
+    """Verificar la auditoría de una acción no permitida."""
+    data = MagicMock()
+    log = MagicMock()
+    observer = MagicMock()
+
+    proxy = CorporateProxy(data, log, observer)
+
+    result = proxy.process(
+        {
+            "UUID": "CPU-123",
+            "ACTION": "delete",
+            "ID": "EMPRESA-1",
+        }
+    )
+
+    assert result == {"Error": "Acción no válida"}
+
+    log.save.assert_called_once()
+
+    entry = log.save.call_args.args[0]
+
+    assert entry["UUID"] == "CPU-123"
+    assert entry["ACTION"] == "delete"
+    assert entry["ID"] == "EMPRESA-1"
