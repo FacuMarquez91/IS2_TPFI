@@ -94,3 +94,76 @@ def test_proxy_missing_id() -> None:
     result = proxy.process({"UUID": "CPU-1", "ACTION": "get"})
 
     assert result == {"Error": "ID obligatorio"}
+
+
+def test_proxy_set_notifies_observers() -> None:
+    """Verificar que set notifique el registro actualizado."""
+    data = MagicMock()
+    log = MagicMock()
+    observer = MagicMock()
+
+    updated = {
+        "id": "EMPRESA-1",
+        "telefono": "123456",
+    }
+    data.set.return_value = updated
+
+    proxy = CorporateProxy(data, log, observer)
+
+    result = proxy.process(
+        {
+            "UUID": "CPU-1",
+            "ID": "EMPRESA-1",
+            "ACTION": "set",
+            "DATA": {"telefono": "123456"},
+        }
+    )
+
+    assert result == updated
+    data.set.assert_called_once_with(
+        "EMPRESA-1",
+        {"telefono": "123456"},
+    )
+    log.save.assert_called_once()
+    observer.notify.assert_called_once_with(updated)
+
+
+def test_proxy_get_does_not_notify() -> None:
+    """Verificar que una consulta no genere notificaciones."""
+    data = MagicMock()
+    log = MagicMock()
+    observer = MagicMock()
+
+    data.get.return_value = {"id": "EMPRESA-1"}
+
+    proxy = CorporateProxy(data, log, observer)
+
+    proxy.process(
+        {
+            "UUID": "CPU-1",
+            "ID": "EMPRESA-1",
+            "ACTION": "get",
+        }
+    )
+
+    observer.notify.assert_not_called()
+
+
+def test_proxy_list_does_not_notify() -> None:
+    """Verificar que un listado no genere notificaciones."""
+    data = MagicMock()
+    log = MagicMock()
+    observer = MagicMock()
+
+    data.list_all.return_value = [{"id": "EMPRESA-1"}]
+
+    proxy = CorporateProxy(data, log, observer)
+
+    proxy.process(
+        {
+            "UUID": "CPU-1",
+            "ACTION": "list",
+        }
+    )
+
+    observer.notify.assert_not_called()

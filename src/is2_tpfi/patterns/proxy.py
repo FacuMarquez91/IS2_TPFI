@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from is2_tpfi.patterns.observer import CorporateObserver
 from is2_tpfi.patterns.singleton import (
     CorporateDataSingleton,
     CorporateLogSingleton,
@@ -17,14 +18,16 @@ class CorporateProxy:
         self,
         data_manager: CorporateDataSingleton | None = None,
         log_manager: CorporateLogSingleton | None = None,
+        observer: CorporateObserver | None = None,
     ) -> None:
-        """Preparar los gestores de datos y auditoría."""
+        """Preparar los gestores y el administrador de observadores."""
         self.data_manager = (
             data_manager if data_manager is not None else CorporateDataSingleton()
         )
         self.log_manager = (
             log_manager if log_manager is not None else CorporateLogSingleton()
         )
+        self.observer = observer if observer is not None else CorporateObserver()
 
     def process(self, request: dict[str, Any]) -> dict[str, Any] | list[dict[str, Any]]:
         """Procesar una solicitud get, set o list."""
@@ -69,7 +72,11 @@ class CorporateProxy:
                 return {"Error": "DATA debe ser un objeto JSON"}
 
             result_set = self.data_manager.set(record_id, data)
+
             self._audit(cpu_uuid, action, record_id)
+
+            self.observer.notify(result_set)
+
             return result_set
 
         except (ValueError, TypeError) as error:
@@ -81,7 +88,7 @@ class CorporateProxy:
         action: str,
         record_id: str | None,
     ) -> None:
-        """Registrar la operación en CorporateLog."""
+        """Registrar una operación en CorporateLog."""
         entry = {
             "id": str(uuid4()),
             "UUID": cpu_uuid,
