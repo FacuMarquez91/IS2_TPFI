@@ -59,6 +59,31 @@ class CorporateRequestHandler(BaseHTTPRequestHandler):
 
             status = 400 if isinstance(response, dict) and "Error" in response else 200
 
+            # Registrar errores y operaciones SET exitosas.
+            if isinstance(response, dict) and "Error" in response:
+                error_message = str(response["Error"])
+
+                if (
+                    request.get("ACTION") == "get"
+                    and error_message == "Registro no encontrado"
+                ):
+                    logger.error(
+                        "ERROR: Registro inexistente. ID solicitado: %s",
+                        request.get("ID"),
+                    )
+                else:
+                    logger.warning(
+                        "Solicitud rechazada: %s",
+                        error_message,
+                    )
+
+            elif request.get("ACTION") == "set":
+                logger.info(
+                    "Registro creado o actualizado correctamente "
+                    "en CorporateData. ID: %s",
+                    request.get("ID"),
+                )
+
             self.send_json(response, status)
 
         except (ValueError, UnicodeDecodeError):

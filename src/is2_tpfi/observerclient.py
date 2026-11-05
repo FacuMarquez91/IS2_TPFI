@@ -85,7 +85,23 @@ def listen(
                             indent=4,
                         )
 
-                        print(text, flush=True)
+                        print(
+                            "\n"
+                            + "=" * 50
+                            + "\n¡SE DETECTÓ UN CAMBIO EN CORPORATEDATA!"
+                            + "\n"
+                            + "=" * 50
+                            + (
+                                "\nRegistro actualizado: "
+                                f"{message.get('data', {}).get('id', 'Desconocido')}"
+                            )
+                            + "\n\nDATOS ACTUALIZADOS:"
+                            + "\n"
+                            + text
+                            + "\n"
+                            + "=" * 50,
+                            flush=True,
+                        )
 
                         if output is not None:
                             with output.open(

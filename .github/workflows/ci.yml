@@ -67,3 +67,36 @@ jobs:
             --cov=is2_tpfi \
             --cov-report=term-missing \
             --cov-fail-under=85
+
+  documentation:
+    name: Generar documentación con pdoc
+    needs: quality
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configurar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar aplicativo y pdoc
+        run: |
+          python -m pip install -e .
+          python -m pip install pdoc
+
+      - name: Generar documentación
+        run: python -m pdoc is2_tpfi -o site/pdoc
+
+      - name: Guardar documentación generada
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentacion-pdoc
+          path: site/pdoc/

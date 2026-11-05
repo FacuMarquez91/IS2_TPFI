@@ -68,3 +68,28 @@ venv/
 # IS2 TPFI - Archivos locales
 .vscode/
 .idea/
+
+# Pruebas manuales contra AWS
+/test_get.json
+/test_list.json
+/test_set.json
+/test_update.json
+/test_request.json
+/resultado_*.json
+/notificaciones.json
+
+# Credenciales AWS
+IS2_TPFI_credentials.json
+*credentials*.json
+.env
+.env.*
+
+# IS2 TPFI - Archivos de pruebas manuales
+/demo_*.json
+/test_get_error.json
+/test_get_propio.json
+/backups_docs/
+
+# Archivos generados localmente
+/site/
+/*.log
