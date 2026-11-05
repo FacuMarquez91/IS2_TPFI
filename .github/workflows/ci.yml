@@ -89,7 +89,7 @@ jobs:
 
       - name: Instalar aplicativo y pdoc
         run: |
-          python -m pip install -e .
+          python -m pip install -e ".[dev]"
           python -m pip install pdoc
 
       - name: Generar documentación
